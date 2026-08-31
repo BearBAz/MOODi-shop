@@ -18,7 +18,7 @@
       <div class="loading-logo__ring"></div>
     </div>
     <p>กำลังเปิดร้าน…</p>
-  </div>
+  </div> 
 
   <!-- ===== App shell (hidden until LIFF ready) ===== -->
   <div id="app" class="app hidden">
