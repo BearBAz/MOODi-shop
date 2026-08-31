@@ -8,7 +8,7 @@
    ไม่ต้องแตะไฟล์นี้)
    ========================================================= */
 
-const GAS_URL = "YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL"; // ลงท้ายด้วย /exec
+const GAS_URL = "https://script.google.com/macros/s/AKfycbz7rVZO1iOhwcxAt2V9mJBqjKWIPeGFPIfniu6lbOADcJ_0j7lfkGB9sQpM4ffFUjej3A/exec"; // ลงท้ายด้วย /exec
 
 const state = {
   profile: null,
