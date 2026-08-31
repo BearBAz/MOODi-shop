@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>ทองก้อน — สั่งของหวาน</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- ===== Loading screen ===== -->
+  <div id="loading-screen" class="loading-screen">
+    <div class="loading-logo">
+      <img id="shop-logo" class="loading-logo__img" alt="โลโก้ร้าน" />
+      <div class="loading-logo__ring"></div>
+    </div>
+    <p>กำลังเปิดร้าน…</p>
+  </div>
+
+  <!-- ===== App shell (hidden until LIFF ready) ===== -->
+  <div id="app" class="app hidden">
+
+    <!-- Header -->
+    <header class="header">
+      <div class="header__brand">
+        <span class="header__mark">TK</span>
+        <div>
+          <h1 class="header__title">ทองก้อน</h1>
+          <p class="header__sub" id="shop-name">ร้านทองก้อนไส้นุ่ม</p>
+        </div>
+      </div>
+      <div class="header__user" id="header-user">
+        <img id="user-avatar" class="header__avatar" alt="" />
+      </div>
+    </header>
+
+    <!-- Shop status + quota gauge (signature element) -->
+    <section class="status-card" id="status-card">
+      <div class="status-card__row">
+        <span class="status-dot" id="status-dot"></span>
+        <span class="status-text" id="status-text">กำลังตรวจสอบคิวร้าน…</span>
+      </div>
+
+      <div class="gauge" id="gauge" aria-hidden="true">
+        <div class="gauge__mold">
+          <div class="gauge__pour" id="gauge-pour"></div>
+          <div class="gauge__sheen"></div>
+        </div>
+        <div class="gauge__label">
+          <span id="gauge-remaining">–</span>
+          <span class="gauge__label-sub">โควต้าคงเหลือวันนี้ / <span id="gauge-total">–</span></span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Closed state -->
+    <section id="closed-panel" class="closed-panel hidden">
+      <div class="closed-panel__icon">⏸</div>
+      <h2>วันนี้ร้านปิดค่ะ</h2>
+      <p>ยังไม่มีการเปิดคิวสำหรับวันที่เลือก กรุณากลับมาใหม่ในวันที่ร้านเปิด</p>
+    </section>
+
+    <!-- Product list -->
+    <main id="product-list" class="product-list hidden"></main>
+
+    <!-- Floating cart bar -->
+    <button id="cart-bar" class="cart-bar hidden" type="button">
+      <span class="cart-bar__count" id="cart-count">0</span>
+      <span class="cart-bar__label">ดูตะกร้า</span>
+      <span class="cart-bar__price" id="cart-total">฿0</span>
+    </button>
+  </div>
+
+  <!-- ===== Product / filling picker sheet ===== -->
+  <div id="picker-sheet" class="sheet hidden">
+    <div class="sheet__backdrop" data-close-picker></div>
+    <div class="sheet__panel">
+      <div class="sheet__handle"></div>
+      <h2 id="picker-title" class="sheet__title">เลือกไส้</h2>
+      <p class="sheet__price" id="picker-price">฿0 / ชิ้น</p>
+
+      <div class="filling-grid" id="filling-grid"></div>
+
+      <div class="qty-row">
+        <span>จำนวน</span>
+        <div class="stepper">
+          <button type="button" id="qty-minus" aria-label="ลดจำนวน">−</button>
+          <span id="qty-value">1</span>
+          <button type="button" id="qty-plus" aria-label="เพิ่มจำนวน">+</button>
+        </div>
+      </div>
+
+      <button id="add-to-cart-btn" class="btn btn--primary" type="button">เพิ่มลงตะกร้า</button>
+    </div>
+  </div>
+
+  <!-- ===== Cart / checkout sheet ===== -->
+  <div id="cart-sheet" class="sheet hidden">
+    <div class="sheet__backdrop" data-close-cart></div>
+    <div class="sheet__panel sheet__panel--tall">
+      <div class="sheet__handle"></div>
+      <h2 class="sheet__title">ตะกร้าของฉัน</h2>
+
+      <div id="cart-items" class="cart-items"></div>
+
+      <div class="cart-summary">
+        <div class="cart-summary__row">
+          <span>รวมทั้งหมด</span>
+          <span id="cart-summary-total">฿0</span>
+        </div>
+      </div>
+
+      <button id="checkout-btn" class="btn btn--primary" type="button">ยืนยันคำสั่งซื้อ</button>
+    </div>
+  </div>
+
+  <!-- ===== Payment / confirm sheet ===== -->
+  <div id="payment-sheet" class="sheet hidden">
+    <div class="sheet__backdrop"></div>
+    <div class="sheet__panel">
+      <div class="sheet__handle"></div>
+      <h2 class="sheet__title">ชำระเงิน</h2>
+      <p class="sheet__order-no">เลขที่ออเดอร์ <strong id="order-no">–</strong></p>
+
+      <div class="payment-card">
+        <img id="qr-image" class="payment-card__qr" alt="QR Code พร้อมเพย์" />
+        <div class="payment-card__account">
+          <p class="payment-card__bank" id="bank-name">ธนาคาร —</p>
+          <p class="payment-card__number" id="bank-account">xxx-x-xxxxx-x</p>
+          <p class="payment-card__owner" id="bank-owner">ชื่อบัญชี —</p>
+        </div>
+        <p class="payment-card__amount">ยอดชำระ <strong id="payment-amount">฿0</strong></p>
+      </div>
+
+      <p class="payment-note">โอนเงินแล้วกดปุ่มด้านล่าง ระบบจะส่งข้อความยืนยันเข้าแชท LINE ของคุณ และแจ้งเตือนแอดมินให้อัตโนมัติ</p>
+
+      <button id="done-btn" class="btn btn--primary" type="button">โอนเงินแล้ว / เสร็จสิ้น</button>
+    </div>
+  </div>
+
+  <div id="toast" class="toast hidden"></div>
+
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
