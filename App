@@ -1,0 +1,311 @@
+/* =========================================================
+   ทองก้อน — app.js
+   ตั้งค่าที่ต้องแก้ก่อนใช้งานจริง (ดู README.md):
+   - GAS_URL (URL ของ Google Apps Script Web App ที่ deploy แล้ว)
+   ค่า LIFF ID และรูปโลโก้ร้าน (LOGO_URL) ไม่ต้องแก้ที่นี่แล้ว — ตั้งเป็น
+   const ไว้ด้านบนสุดของ backend/Code.gs แทน ระบบจะดึงมาให้อัตโนมัติผ่าน
+   action=config ทุกครั้งที่เปิดแอป (แก้ค่าที่ Code.gs แล้ว deploy ใหม่พอ
+   ไม่ต้องแตะไฟล์นี้)
+   ========================================================= */
+
+const GAS_URL = "YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL"; // ลงท้ายด้วย /exec
+
+const state = {
+  profile: null,
+  today: null,          // YYYY-MM-DD ตาม timezone ร้าน
+  isOpen: false,
+  quota: { max: 0, used: 0, remaining: 0 },
+  products: [],          // [{id,name,desc,price,soldOut}]
+  fillings: [],           // [{id,name,extraPrice,color}]
+  cart: [],               // [{productId,productName,fillingId,fillingName,qty,unitPrice}]
+  picker: { productId: null, fillingId: null, qty: 1 },
+};
+
+const $ = (id) => document.getElementById(id);
+const baht = (n) => `฿${Number(n).toLocaleString("th-TH")}`;
+
+function showToast(msg) {
+  const t = $("toast");
+  t.textContent = msg;
+  t.classList.remove("hidden");
+  clearTimeout(showToast._timer);
+  showToast._timer = setTimeout(() => t.classList.add("hidden"), 2400);
+}
+
+/* ---------------- Boot: ดึง config จาก backend ก่อน แล้วค่อย LIFF init ---------------- */
+async function boot() {
+  try {
+    // 1) ดึง LIFF ID + โลโก้ร้าน จาก const ที่ตั้งไว้ใน Code.gs ผ่าน action=config
+    //    ทำก่อนเรียก liff.init() เพราะต้องใช้ LIFF ID ที่ได้มา
+    const configRes = await fetch(`${GAS_URL}?action=config`);
+    const config = await configRes.json();
+
+    if (!config.ok || !config.liffId) {
+      showToast("ยังไม่ได้ตั้งค่า LIFF ID ใน Code.gs");
+      return;
+    }
+
+    // แสดงรูปร้านตอนโหลด ทันทีที่ได้ค่ามาจาก backend (ระหว่างรอ LIFF login)
+    const logoImg = document.getElementById("shop-logo");
+    if (config.logoUrl) {
+      logoImg.src = config.logoUrl;
+      logoImg.addEventListener("error", () => { logoImg.style.visibility = "hidden"; });
+    } else {
+      logoImg.style.visibility = "hidden";
+    }
+
+    // 2) LIFF init ด้วย liffId ที่ดึงมา
+    await liff.init({ liffId: config.liffId });
+    if (!liff.isLoggedIn()) {
+      liff.login();
+      return; // page will reload after redirect
+    }
+    state.profile = await liff.getProfile();
+    $("user-avatar").src = state.profile.pictureUrl || "";
+    await loadShopStatus();
+  } catch (err) {
+    console.error(err);
+    showToast("เชื่อมต่อ LINE ไม่สำเร็จ ลองเปิดใหม่อีกครั้ง");
+  } finally {
+    $("loading-screen").classList.add("hidden");
+    $("app").classList.remove("hidden");
+  }
+}
+
+/* ---------------- Data loading ---------------- */
+async function loadShopStatus() {
+  const res = await fetch(`${GAS_URL}?action=status`);
+  const data = await res.json();
+
+  state.today = data.date;
+  state.isOpen = data.open;
+  state.quota = data.quota || { max: 0, used: 0, remaining: 0 };
+  state.products = data.products || [];
+  state.fillings = data.fillings || [];
+  $("shop-name").textContent = data.shopName || "ร้านทองก้อนไส้นุ่ม";
+
+  renderStatus();
+  if (state.isOpen) {
+    renderProducts();
+  } else {
+    $("closed-panel").classList.remove("hidden");
+    $("product-list").classList.add("hidden");
+  }
+}
+
+/* ---------------- Rendering ---------------- */
+function renderStatus() {
+  const dot = $("status-dot");
+  const text = $("status-text");
+  if (state.isOpen) {
+    dot.className = "status-dot open";
+    text.textContent = `เปิดรับออเดอร์วันที่ ${state.today}`;
+  } else {
+    dot.className = "status-dot closed";
+    text.textContent = `ร้านปิดวันที่ ${state.today}`;
+  }
+
+  const { max, remaining } = state.quota;
+  const pct = max > 0 ? Math.max(0, Math.min(100, ((max - remaining) / max) * 100)) : 0;
+  $("gauge-pour").style.width = `${pct}%`;
+  $("gauge-remaining").textContent = state.isOpen ? remaining : "–";
+  $("gauge-total").textContent = max || "–";
+}
+
+function renderProducts() {
+  const list = $("product-list");
+  list.classList.remove("hidden");
+  list.innerHTML = "";
+
+  state.products.forEach((p) => {
+    const soldOut = state.quota.remaining <= 0 || p.soldOut;
+    const card = document.createElement("div");
+    card.className = `product-card${soldOut ? " sold-out" : ""}`;
+    card.innerHTML = `
+      <div class="product-card__thumb">${(p.name || "").trim().charAt(0) || "•"}</div>
+      <div class="product-card__body">
+        <p class="product-card__name">${p.name}</p>
+        <p class="product-card__desc">${p.desc || ""}</p>
+        <p class="product-card__price">${baht(p.price)} / ชิ้น</p>
+      </div>
+      <button class="product-card__btn" type="button">${soldOut ? "หมด" : "เลือก"}</button>
+    `;
+    if (!soldOut) {
+      card.querySelector(".product-card__btn").addEventListener("click", () => openPicker(p));
+    }
+    list.appendChild(card);
+  });
+}
+
+/* ---------------- Picker sheet (product -> filling -> qty) ---------------- */
+function openPicker(product) {
+  state.picker = { productId: product.id, fillingId: null, qty: 1 };
+  $("picker-title").textContent = product.name;
+  $("picker-price").textContent = `${baht(product.price)} / ชิ้น`;
+  $("qty-value").textContent = "1";
+
+  const grid = $("filling-grid");
+  grid.innerHTML = "";
+  state.fillings.forEach((f) => {
+    const chip = document.createElement("button");
+    chip.type = "button";
+    chip.className = "filling-chip";
+    chip.innerHTML = `<span class="filling-chip__swatch" style="background:${f.color}"></span>${f.name}${f.extraPrice ? ` (+${baht(f.extraPrice)})` : ""}`;
+    chip.addEventListener("click", () => {
+      state.picker.fillingId = f.id;
+      grid.querySelectorAll(".filling-chip").forEach((c) => c.classList.remove("selected"));
+      chip.classList.add("selected");
+    });
+    grid.appendChild(chip);
+  });
+  // default select first filling
+  if (state.fillings.length) {
+    state.picker.fillingId = state.fillings[0].id;
+    grid.firstChild.classList.add("selected");
+  }
+
+  $("picker-sheet").classList.remove("hidden");
+}
+
+$("qty-minus").addEventListener("click", () => {
+  state.picker.qty = Math.max(1, state.picker.qty - 1);
+  $("qty-value").textContent = state.picker.qty;
+});
+$("qty-plus").addEventListener("click", () => {
+  const maxAllowed = Math.max(1, state.quota.remaining - cartTotalQty());
+  state.picker.qty = Math.min(maxAllowed, state.picker.qty + 1);
+  $("qty-value").textContent = state.picker.qty;
+});
+
+$("add-to-cart-btn").addEventListener("click", () => {
+  const product = state.products.find((p) => p.id === state.picker.productId);
+  const filling = state.fillings.find((f) => f.id === state.picker.fillingId);
+  if (!product || !filling) {
+    showToast("กรุณาเลือกไส้ก่อนค่ะ");
+    return;
+  }
+  if (cartTotalQty() + state.picker.qty > state.quota.remaining) {
+    showToast(`เหลือโควต้าวันนี้อีกแค่ ${state.quota.remaining - cartTotalQty()} ชิ้น`);
+    return;
+  }
+  state.cart.push({
+    productId: product.id,
+    productName: product.name,
+    fillingId: filling.id,
+    fillingName: filling.name,
+    qty: state.picker.qty,
+    unitPrice: product.price + (filling.extraPrice || 0),
+  });
+  renderCartBar();
+  closePicker();
+  showToast("เพิ่มลงตะกร้าแล้ว");
+});
+
+function closePicker() { $("picker-sheet").classList.add("hidden"); }
+document.querySelectorAll("[data-close-picker]").forEach((el) => el.addEventListener("click", closePicker));
+
+/* ---------------- Cart ---------------- */
+function cartTotalQty() { return state.cart.reduce((s, i) => s + i.qty, 0); }
+function cartTotalPrice() { return state.cart.reduce((s, i) => s + i.qty * i.unitPrice, 0); }
+
+function renderCartBar() {
+  const bar = $("cart-bar");
+  const count = cartTotalQty();
+  if (count === 0) { bar.classList.add("hidden"); return; }
+  bar.classList.remove("hidden");
+  $("cart-count").textContent = count;
+  $("cart-total").textContent = baht(cartTotalPrice());
+}
+
+$("cart-bar").addEventListener("click", () => {
+  renderCartItems();
+  $("cart-sheet").classList.remove("hidden");
+});
+document.querySelectorAll("[data-close-cart]").forEach((el) =>
+  el.addEventListener("click", () => $("cart-sheet").classList.add("hidden"))
+);
+
+function renderCartItems() {
+  const wrap = $("cart-items");
+  wrap.innerHTML = "";
+  state.cart.forEach((item, idx) => {
+    const row = document.createElement("div");
+    row.className = "cart-item";
+    row.innerHTML = `
+      <div class="cart-item__info">
+        <p class="cart-item__name">${item.productName} · ${item.fillingName}</p>
+        <p class="cart-item__meta">x${item.qty} · ${baht(item.unitPrice)}/ชิ้น</p>
+      </div>
+      <span class="cart-item__price">${baht(item.qty * item.unitPrice)}</span>
+      <button class="cart-item__remove" type="button" data-idx="${idx}">ลบ</button>
+    `;
+    row.querySelector(".cart-item__remove").addEventListener("click", () => {
+      state.cart.splice(idx, 1);
+      renderCartItems();
+      renderCartBar();
+    });
+    wrap.appendChild(row);
+  });
+  $("cart-summary-total").textContent = baht(cartTotalPrice());
+}
+
+/* ---------------- Checkout ---------------- */
+$("checkout-btn").addEventListener("click", async () => {
+  if (state.cart.length === 0) return;
+  $("checkout-btn").disabled = true;
+  $("checkout-btn").textContent = "กำลังส่งออเดอร์…";
+
+  try {
+    const res = await fetch(GAS_URL, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" }, // avoids CORS preflight on Apps Script
+      body: JSON.stringify({
+        action: "createOrder",
+        userId: state.profile.userId,
+        displayName: state.profile.displayName,
+        items: state.cart,
+      }),
+    });
+    const data = await res.json();
+
+    if (!data.ok) {
+      showToast(data.message || "สั่งไม่สำเร็จ กรุณาลองใหม่");
+      return;
+    }
+
+    $("cart-sheet").classList.add("hidden");
+    openPaymentSheet(data.order);
+    state.cart = [];
+    renderCartBar();
+    // refresh quota after successful order
+    state.quota = data.quota;
+    renderStatus();
+    renderProducts();
+  } catch (err) {
+    console.error(err);
+    showToast("เชื่อมต่อเซิร์ฟเวอร์ไม่สำเร็จ");
+  } finally {
+    $("checkout-btn").disabled = false;
+    $("checkout-btn").textContent = "ยืนยันคำสั่งซื้อ";
+  }
+});
+
+function openPaymentSheet(order) {
+  $("order-no").textContent = order.orderNo;
+  $("qr-image").src = order.qrImageUrl;
+  $("bank-name").textContent = order.bankName;
+  $("bank-account").textContent = order.bankAccount;
+  $("bank-owner").textContent = order.bankOwner;
+  $("payment-amount").textContent = baht(order.totalPrice);
+  $("payment-sheet").classList.remove("hidden");
+}
+
+$("done-btn").addEventListener("click", () => {
+  $("payment-sheet").classList.add("hidden");
+  showToast("ขอบคุณค่ะ ระบบส่งข้อความยืนยันเข้า LINE แล้ว");
+  if (liff.isInClient()) {
+    setTimeout(() => liff.closeWindow(), 1200);
+  }
+});
+
+boot();
