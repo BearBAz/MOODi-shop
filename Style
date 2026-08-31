@@ -1,0 +1,292 @@
+/* =========================================================
+   ทองก้อน — design tokens (Minimal Blue / White)
+   Palette:
+     --bg         #FFFFFF   page background
+     --bg-soft    #F6F8FC   subtle section background
+     --surface    #FFFFFF   card surface
+     --ink        #0F172A   primary text (near-black navy)
+     --ink-dim    #64748B   secondary text
+     --blue       #2563EB   brand / primary action
+     --blue-dark  #1D4ED8   hover / active
+     --blue-soft  #EEF3FF   selected / chip background
+     --border     #E4E9F2   hairline borders
+     --danger     #DC4C4C   used sparingly (sold out / remove)
+   Type:
+     display: 'Noto Sans Thai' 700   (headings, no serif — clean & modern)
+     body:    'Noto Sans Thai' 400/500
+     utility: 'IBM Plex Mono'        (order numbers, quota, prices)
+   Signature: the "gauge" — a slim linear progress rail in brand blue
+   showing today's remaining order quota.
+   ========================================================= */
+
+:root {
+  --bg: #FFFFFF;
+  --bg-soft: #F6F8FC;
+  --surface: #FFFFFF;
+  --ink: #0F172A;
+  --ink-dim: #64748B;
+  --ink-faint: #94A3B8;
+  --blue: #2563EB;
+  --blue-dark: #1D4ED8;
+  --blue-soft: #EEF3FF;
+  --border: #E4E9F2;
+  --danger: #DC4C4C;
+  --radius: 18px;
+  --shadow: 0 10px 28px rgba(15, 23, 42, 0.08);
+  --shadow-sm: 0 4px 12px rgba(15, 23, 42, 0.06);
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg-soft);
+  color: var(--ink);
+  font-family: 'Noto Sans Thai', sans-serif;
+  -webkit-tap-highlight-color: transparent;
+}
+
+h1, h2 { font-family: 'Noto Sans Thai', sans-serif; font-weight: 700; margin: 0; }
+
+.hidden { display: none !important; }
+
+button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+
+/* ---------- loading ---------- */
+.loading-screen {
+  position: fixed; inset: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 18px;
+  background: var(--bg);
+  color: var(--ink-dim);
+  z-index: 999;
+}
+.ingot-loader { display: none; }
+.loading-logo {
+  position: relative;
+  width: 104px; height: 104px;
+  display: flex; align-items: center; justify-content: center;
+}
+.loading-logo__img {
+  width: 80px; height: 80px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--bg-soft);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+}
+.loading-logo__ring {
+  position: absolute; inset: 0;
+  border-radius: 50%;
+  border: 3px solid var(--border);
+  border-top-color: var(--blue);
+  animation: spin 0.9s linear infinite;
+}
+.ingot-loader__shine { display: none; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ---------- app shell ---------- */
+.app { max-width: 480px; margin: 0 auto; padding-bottom: 110px; min-height: 100vh; background: var(--bg-soft); }
+
+.header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 20px 20px 10px;
+  background: var(--bg);
+}
+.header__brand { display: flex; align-items: center; gap: 12px; }
+.header__mark {
+  font-weight: 700;
+  font-size: 16px;
+  width: 42px; height: 42px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 12px;
+  background: var(--blue);
+  color: #fff;
+  letter-spacing: -0.5px;
+}
+.header__title { font-size: 20px; color: var(--ink); letter-spacing: -0.3px; }
+.header__sub { margin: 2px 0 0; font-size: 12.5px; color: var(--ink-dim); }
+.header__avatar { width: 36px; height: 36px; border-radius: 50%; border: 2px solid var(--blue-soft); object-fit: cover; }
+
+/* ---------- status + gauge ---------- */
+.status-card {
+  margin: 12px 16px 4px;
+  padding: 18px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+}
+.status-card__row { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; }
+.status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ink-faint); flex-shrink: 0; }
+.status-dot.open { background: #22B07D; box-shadow: 0 0 0 3px rgba(34,176,125,0.15); }
+.status-dot.closed { background: var(--danger); box-shadow: 0 0 0 3px rgba(220,76,76,0.15); }
+.status-text { font-size: 13.5px; color: var(--ink-dim); font-weight: 500; }
+
+.gauge { display: flex; align-items: center; gap: 14px; }
+.gauge__mold {
+  flex: 1;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--bg-soft);
+  border: 1px solid var(--border);
+  position: relative;
+  overflow: hidden;
+}
+.gauge__pour {
+  position: absolute; left: 0; top: 0; bottom: 0;
+  width: 0%;
+  background: linear-gradient(90deg, var(--blue-dark), var(--blue));
+  transition: width 0.6s cubic-bezier(.2,.8,.2,1);
+  border-radius: 999px;
+}
+.gauge__sheen { display: none; }
+.gauge__label { text-align: right; font-family: 'IBM Plex Mono', monospace; line-height: 1.2; }
+.gauge__label span:first-child#gauge-remaining { display: block; font-size: 19px; color: var(--blue); font-weight: 600; }
+.gauge__label-sub { font-size: 10.5px; color: var(--ink-faint); }
+
+/* ---------- closed panel ---------- */
+.closed-panel { text-align: center; padding: 60px 30px; color: var(--ink-dim); }
+.closed-panel__icon {
+  width: 56px; height: 56px; margin: 0 auto 14px;
+  border-radius: 50%; background: var(--blue-soft);
+  display: flex; align-items: center; justify-content: center; font-size: 24px;
+}
+.closed-panel h2 { color: var(--ink); margin-bottom: 8px; }
+
+/* ---------- product list ---------- */
+.product-list { padding: 14px 16px 4px; display: flex; flex-direction: column; gap: 12px; }
+
+.product-card {
+  display: flex; align-items: center; gap: 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px;
+  box-shadow: var(--shadow-sm);
+}
+.product-card__thumb {
+  width: 56px; height: 56px; border-radius: 14px; flex-shrink: 0;
+  background: var(--blue-soft);
+  color: var(--blue);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; font-weight: 700;
+}
+.product-card__body { flex: 1; min-width: 0; }
+.product-card__name { margin: 0 0 3px; font-size: 15.5px; color: var(--ink); font-weight: 600; }
+.product-card__desc { margin: 0; font-size: 12.5px; color: var(--ink-dim); }
+.product-card__price { font-family: 'IBM Plex Mono', monospace; color: var(--blue); font-size: 13px; margin-top: 6px; font-weight: 500; }
+.product-card__btn {
+  flex-shrink: 0;
+  background: var(--blue);
+  color: #fff;
+  font-weight: 600;
+  font-size: 13px;
+  padding: 9px 18px;
+  border-radius: 999px;
+}
+.product-card__btn:active { background: var(--blue-dark); }
+.product-card.sold-out { opacity: 0.5; }
+.product-card.sold-out .product-card__btn { pointer-events: none; background: var(--bg-soft); color: var(--ink-faint); }
+
+/* ---------- cart bar ---------- */
+.cart-bar {
+  position: fixed; left: 16px; right: 16px; bottom: 18px;
+  max-width: 448px; margin: 0 auto;
+  display: flex; align-items: center; gap: 10px;
+  background: var(--ink);
+  color: #fff;
+  padding: 14px 18px;
+  border-radius: 16px;
+  box-shadow: 0 12px 28px rgba(15,23,42,0.25);
+  z-index: 30;
+}
+.cart-bar__count {
+  background: var(--blue);
+  width: 24px; height: 24px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12.5px; font-family: 'IBM Plex Mono', monospace;
+}
+.cart-bar__label { flex: 1; text-align: left; font-weight: 600; font-size: 14.5px; }
+.cart-bar__price { font-family: 'IBM Plex Mono', monospace; font-weight: 600; }
+
+/* ---------- bottom sheets ---------- */
+.sheet { position: fixed; inset: 0; z-index: 60; }
+.sheet__backdrop { position: absolute; inset: 0; background: rgba(15,23,42,0.4); }
+.sheet__panel {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  max-width: 480px; margin: 0 auto;
+  background: var(--bg);
+  border-radius: 24px 24px 0 0;
+  padding: 10px 20px 24px;
+  border-top: 1px solid var(--border);
+  animation: sheet-up 0.28s cubic-bezier(.2,.8,.2,1);
+  max-height: 86vh; overflow-y: auto;
+}
+.sheet__panel--tall { max-height: 90vh; }
+@keyframes sheet-up { from { transform: translateY(30px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+.sheet__handle { width: 40px; height: 4px; border-radius: 2px; background: var(--border); margin: 8px auto 14px; }
+.sheet__title { font-size: 18px; color: var(--ink); margin-bottom: 4px; }
+.sheet__price { color: var(--blue); font-family: 'IBM Plex Mono', monospace; font-size: 14px; margin: 0 0 16px; font-weight: 500; }
+.sheet__order-no { color: var(--ink-dim); font-size: 13.5px; margin-bottom: 14px; }
+
+/* filling chips */
+.filling-grid { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 18px; }
+.filling-chip {
+  flex: 1 1 calc(50% - 10px);
+  display: flex; align-items: center; gap: 8px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1.5px solid var(--border);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 13.5px;
+}
+.filling-chip__swatch { width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0; border: 1px solid rgba(15,23,42,0.08); }
+.filling-chip.selected { border-color: var(--blue); background: var(--blue-soft); color: var(--blue-dark); font-weight: 600; }
+
+/* qty stepper */
+.qty-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; font-size: 14.5px; color: var(--ink-dim); }
+.stepper { display: flex; align-items: center; gap: 14px; background: var(--bg-soft); border-radius: 999px; padding: 6px 10px; border: 1px solid var(--border); }
+.stepper button { width: 26px; height: 26px; border-radius: 50%; background: var(--blue); color: #fff; font-size: 16px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+.stepper span { min-width: 20px; text-align: center; font-family: 'IBM Plex Mono', monospace; color: var(--ink); }
+
+.btn {
+  width: 100%; padding: 15px; border-radius: 14px; font-size: 15.5px; font-weight: 600;
+}
+.btn--primary { background: var(--blue); color: #fff; }
+.btn--primary:active { background: var(--blue-dark); }
+
+/* cart items */
+.cart-items { display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px; max-height: 40vh; overflow-y: auto; }
+.cart-item { display: flex; align-items: center; gap: 10px; background: var(--bg-soft); border-radius: 12px; padding: 10px 12px; border: 1px solid var(--border); }
+.cart-item__info { flex: 1; }
+.cart-item__name { font-size: 14px; color: var(--ink); margin: 0; }
+.cart-item__meta { font-size: 12px; color: var(--ink-dim); margin: 2px 0 0; }
+.cart-item__price { font-family: 'IBM Plex Mono', monospace; color: var(--blue); font-size: 13px; }
+.cart-item__remove { color: var(--danger); font-size: 12px; margin-left: 4px; }
+
+.cart-summary { border-top: 1px dashed var(--border); padding-top: 12px; margin-bottom: 16px; }
+.cart-summary__row { display: flex; justify-content: space-between; font-size: 16px; color: var(--ink); font-weight: 600; font-family: 'IBM Plex Mono', monospace; }
+
+/* payment card */
+.payment-card { background: var(--bg-soft); border: 1px solid var(--border); border-radius: 16px; padding: 18px; text-align: center; margin-bottom: 14px; }
+.payment-card__qr { width: 190px; height: 190px; object-fit: contain; background: #fff; border-radius: 10px; padding: 8px; margin-bottom: 12px; border: 1px solid var(--border); }
+.payment-card__bank { margin: 0; font-size: 13px; color: var(--ink-dim); }
+.payment-card__number { margin: 4px 0; font-family: 'IBM Plex Mono', monospace; font-size: 19px; color: var(--ink); letter-spacing: 0.5px; font-weight: 600; }
+.payment-card__owner { margin: 0 0 10px; font-size: 13px; color: var(--ink-dim); }
+.payment-card__amount { margin: 0; font-size: 15px; color: var(--ink); }
+.payment-card__amount strong { color: var(--blue); }
+.payment-note { font-size: 12.5px; color: var(--ink-dim); text-align: center; margin-bottom: 18px; line-height: 1.5; }
+
+/* toast */
+.toast {
+  position: fixed; left: 50%; bottom: 100px; transform: translateX(-50%);
+  background: var(--ink); color: #fff; padding: 10px 18px; border-radius: 999px;
+  font-size: 13.5px; font-weight: 600; box-shadow: var(--shadow); z-index: 100;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ingot-loader, .gauge__pour, .sheet__panel { animation: none !important; transition: none !important; }
+}
